@@ -16,6 +16,7 @@ cd $WORK_DIR
 # Create and activate the virtual environment
 source bml/bin/activate
 source .env
+echo $NEPTUNE_PROJECT
 
 # Run the Python script
 python main.py
