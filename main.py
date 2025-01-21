@@ -10,6 +10,8 @@ from collections import OrderedDict
 from datasets import load_dataset, load_from_disk
 from transformers import GPT2TokenizerFast
 import argparse
+import neptune  # Added import for Neptune
+import os
 
 class EmbeddingLayer(nn.Module):
     def __init__(self, vocab_size, embed_dim, max_len):
@@ -210,14 +212,13 @@ def calculate_valid_loss(model, valid_dataloader, device, validation_steps):
             mask_loss = mask_loss[attention_mask.reshape(-1) == 1]
             loss = mask_loss.mean().item()
             valid_losses.append(loss)
-            mean_valid_loss = sum(valid_losses) / validation_steps
+    mean_valid_loss = sum(valid_losses) / validation_steps
     return mean_valid_loss
 
-
-def train_model(config, device):
+def train_model(config, device, run):  # Added 'run' parameter
     dataloader = get_dataloader(config.batch_size, config.seq_length)
     valid_dataloader = get_dataloader(config.batch_size, config.seq_length, split="validation")
-    validation_steps = int(1e06 // (config.batch_size * config.seq_length)) # we want to evaluate on 1M tokens
+    validation_steps = int(1e06 // (config.batch_size * config.seq_length))  # we want to evaluate on 1M tokens
     model = Transformer(config)
     model.to(device)
     optimizer = AdamW(model.parameters(), lr=config.learning_rate)
@@ -239,20 +240,36 @@ def train_model(config, device):
         )
         mask_loss = mask_loss[attention_mask.reshape(-1) == 1]
         loss = mask_loss.mean()
-        
-        if i % config.log_train_loss_freq == 0:
-            print(f"Step:{i}, Train Loss:{loss}")
 
         if i % config.log_train_loss_freq == 0:
-            print(f"Valid loss:{calculate_valid_loss(model, valid_dataloader, device, validation_steps)}")
+            print(f"Step:{i}, Train Loss:{loss}")
+            run["train/loss"].log(loss.item())  # Log training loss to Neptune
+
+        if i % config.log_train_loss_freq == 0:
+            valid_loss = calculate_valid_loss(model, valid_dataloader, device, validation_steps)
+            print(f"Valid loss:{valid_loss}")
+            run["validation/loss"].log(valid_loss)  # Log validation loss to Neptune
 
         loss.backward()
         optimizer.step()
 
-    print(f"Final valid loss:{calculate_valid_loss(model, valid_dataloader, device, validation_steps)}")
-
+    final_valid_loss = calculate_valid_loss(model, valid_dataloader, device, validation_steps)
+    print(f"Final valid loss:{final_valid_loss}")
+    run["validation/final_loss"].log(final_valid_loss)  # Log final validation loss to Neptune
 
 def main(args):
+    # Initialize Neptune
+    neptune_project = os.getenv("NEPTUNE_PROJECT")
+    neptune_api_token = os.getenv("NEPTUNE_API_TOKEN")
+    if not neptune_project or not neptune_api_token:
+        raise ValueError("Neptune project or API token not set in environment variables.")
+
+    run = neptune.init(
+        project=neptune_project,  # Replace with your Neptune project
+        api_token=neptune_api_token,      # Replace with your Neptune API token
+        tags=[f"{key}={value}" for key, value in vars(args).items()]  # Log arguments as tags
+    )
+
     config = SimpleNamespace(
         n_training_steps=args.n_training_steps,
         vocab_size=50257,
@@ -270,12 +287,10 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type == "cpu":
         print(f"Device type is: {device}. Remember to train on GPU.")
-    train_model(config, device)
-
+    train_model(config, device, run)  # Pass 'run' to train_model
+    run.stop()  # Stop Neptune run
 
 if __name__ == "__main__":
-    import argparse
-
     parser = argparse.ArgumentParser(description="Transformer Model Training")
     parser.add_argument("--n_layers", type=int, default=4, help="Number of transformer layers")
     parser.add_argument("--dmodel", type=int, default=256, help="Model dimension")
