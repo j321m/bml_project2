@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=bml_proj2       # Job name
-#SBATCH --output=%x_%j.out          # Standard output and error log
-#SBATCH --error=%x_%j.err           # Error log
+#SBATCH --job-name=bml_proj2        # Job name
+#SBATCH --output=logs/%x_%j.out          # Standard output and error log
+#SBATCH --error=logs/%x_%j.err           # Error log
 #SBATCH --gres=gpu:1                # Request one GPU
 #SBATCH --partition=plgrid-gpu-a100 # Specify GPU partition
 #SBATCH --cpus-per-gpu=8            # Number of CPUs per GPU
