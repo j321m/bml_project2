@@ -272,6 +272,9 @@ def main(args):
         tags=[f"{key}={value}" for key, value in vars(args).items()]  # Log arguments as tags
     )
 
+    args_dict = vars(args)
+    run['args'] = args_dict
+
     config = SimpleNamespace(
         n_training_steps=args.n_training_steps,
         vocab_size=50257,
