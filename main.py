@@ -262,6 +262,8 @@ def main(args):
     neptune_project = os.getenv("NEPTUNE_PROJECT")
     neptune_api_token = os.getenv("NEPTUNE_API_TOKEN")
     if not neptune_project or not neptune_api_token:
+        print(f"neptune_project: {neptune_project}")
+        print(f"neptune_api_token: {neptune_api_token}")
         raise ValueError("Neptune project or API token not set in environment variables.")
 
     run = neptune.init(
