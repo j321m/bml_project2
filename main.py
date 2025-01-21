@@ -266,7 +266,7 @@ def main(args):
         print(f"neptune_api_token: {neptune_api_token}")
         raise ValueError("Neptune project or API token not set in environment variables.")
 
-    run = neptune.init(
+    run = neptune.init_run(
         project=neptune_project,  # Replace with your Neptune project
         api_token=neptune_api_token,      # Replace with your Neptune API token
         tags=[f"{key}={value}" for key, value in vars(args).items()]  # Log arguments as tags
