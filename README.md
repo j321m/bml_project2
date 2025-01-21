@@ -15,10 +15,6 @@ Follow these steps to set up the project environment:
      ```bash
      source bml/bin/activate
      ```
-   - On **Windows**:
-     ```cmd
-     bml\Scripts\activate
-     ```
 
 3. **Install Required Dependencies**:
    ```bash
