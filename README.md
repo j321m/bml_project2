@@ -23,6 +23,6 @@ Follow these steps to set up the project environment:
 4. **Configure neptune**:
    ```bash
    touch .env
-   echo -e "NEPTUNE_PROJECT=your_workspace/your_project" >> .env
-   echo -e "NEPTUNE_API_TOKEN=your_neptune_api_token" >> .env
+   echo -e "export NEPTUNE_PROJECT=your_workspace/your_project" >> .env
+   echo -e "export NEPTUNE_API_TOKEN=your_neptune_api_token" >> .env
    ```
