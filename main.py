@@ -9,6 +9,7 @@ from torch.nn.attention import SDPBackend
 from collections import OrderedDict
 from datasets import load_dataset, load_from_disk
 from transformers import GPT2TokenizerFast
+import argparse
 
 class EmbeddingLayer(nn.Module):
     def __init__(self, vocab_size, embed_dim, max_len):
@@ -131,13 +132,13 @@ class Transformer(nn.Module):
         super().__init__()
         self.config = config
         self.embedding_layer = EmbeddingLayer(
-            config.vocab_size, config.d_model, config.max_len
+            config.vocab_size, config.dmodel, config.max_len
         )
         self.blocks = nn.ModuleList(
-            [Block(config.d_model, config.num_heads) for _ in range(config.num_layers)]
+            [Block(config.dmodel, config.n_heads) for _ in range(config.n_layers)]
         )
 
-        self.head = nn.Linear(config.d_model, config.vocab_size, bias=False)
+        self.head = nn.Linear(config.dmodel, config.vocab_size, bias=False)
 
     def forward(self, input_ids, attention_mask=None):
         output = self.embedding_layer(input_ids)
@@ -223,7 +224,7 @@ def train_model(config, device):
 
     model.train()
 
-    for i, batch in zip(range(config.train_steps), dataloader):
+    for i, batch in zip(range(config.n_training_steps), dataloader):
         input_ids = batch["input_ids"].to(device)
         target_ids = batch["target_ids"].to(device)
         attention_mask = batch["attention_mask"]
@@ -251,18 +252,18 @@ def train_model(config, device):
     print(f"Final valid loss:{calculate_valid_loss(model, valid_dataloader, device, validation_steps)}")
 
 
-def main():
+def main(args):
     config = SimpleNamespace(
-        train_steps=1000,
+        n_training_steps=args.n_training_steps,
         vocab_size=50257,
         max_len=256,
-        d_model=256,
-        num_heads=4,
-        num_layers=4,
+        dmodel=args.dmodel,
+        n_heads=4,
+        n_layers=args.n_layers,
         learning_rate=1e-4,
         dropout=0.0,
         seq_length=256,
-        batch_size=64,
+        batch_size=args.batch_size,
         log_train_loss_freq=100,
         log_valid_loss_freq=100
     )
@@ -273,4 +274,15 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Transformer Model Training")
+    parser.add_argument("--n_layers", type=int, default=4, help="Number of transformer layers")
+    parser.add_argument("--dmodel", type=int, default=256, help="Model dimension")
+    parser.add_argument("--n_heads", type=int, default=4, help="Number of attention heads")
+    parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
+    parser.add_argument("--n_training_steps", type=int, default=1000, help="Number of training steps")
+
+    args = parser.parse_args()
+
+    train_model(args)
