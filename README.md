@@ -11,10 +11,9 @@ Follow these steps to set up the project environment:
 
 2. **Initialize (Activate) the Virtual Environment**:
 
-   - On **Linux/Mac**:
-     ```bash
-     source bml/bin/activate
-     ```
+    ```bash
+    source bml/bin/activate
+    ```
 
 3. **Install Required Dependencies**:
    ```bash
