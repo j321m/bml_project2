@@ -248,7 +248,7 @@ def train_model(config, device, run):  # Added 'run' parameter
         if i % config.log_train_loss_freq == 0:
             valid_loss = calculate_valid_loss(model, valid_dataloader, device, validation_steps)
             print(f"Valid loss:{valid_loss}")
-            run["validation/loss"].log(vlue=valid_loss, step=i)  # Log validation loss to Neptune
+            run["validation/loss"].log(value=valid_loss, step=i)  # Log validation loss to Neptune
 
         loss.backward()
         optimizer.step()
