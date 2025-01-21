@@ -9,9 +9,6 @@
 #SBATCH --account=plgllmparamgr-gpu-a100  # Account name
 #SBATCH --time=0-00:05:00           # Time limit (D-HH:MM:SS)
 
-# Load necessary modules
-module load python/3.8  # Adjust this according to your environment
-
 # Set up the environment
 WORK_DIR="/net/people/plgrid/plgj321m/bml_project2"
 cd $WORK_DIR
