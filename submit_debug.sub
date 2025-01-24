@@ -6,7 +6,7 @@
 #SBATCH --partition=a100            # Specify GPU partition
 #SBATCH --cpus-per-gpu=8            # Number of CPUs per GPU
 #SBATCH --mem=100G                  # Memory requested
-#SBATCH --account=j321m_a100               # Account name
+#SBATCH --account=mim               # Account name
 #SBATCH --time=0-00:05:00           # Time limit (D-HH:MM:SS)
 
 # Set up the environment
