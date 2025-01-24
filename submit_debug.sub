@@ -10,7 +10,7 @@
 #SBATCH --time=0-00:05:00           # Time limit (D-HH:MM:SS)
 
 # Set up the environment
-WORK_DIR="/home/j321m_a100/bml"
+WORK_DIR="/home/j321m_a100/bml/bml_project2"
 cd $WORK_DIR
 
 # Create and activate the virtual environment
