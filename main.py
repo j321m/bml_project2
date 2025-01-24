@@ -310,6 +310,7 @@ def main(args):
         batch_size=args.batch_size,
         log_train_loss_freq=100,
         log_valid_loss_freq=100,
+        dataset_path=args.dataset_path
     )
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type == "cpu":
