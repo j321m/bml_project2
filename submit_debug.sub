@@ -19,4 +19,4 @@ source .env
 echo $NEPTUNE_PROJECT
 
 # Run the Python script
-python main.py
+python main.py --dataset_path "/local_storage_2/llm-random/datasets/c4_"

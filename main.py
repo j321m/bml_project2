@@ -172,14 +172,15 @@ def get_dataloader(
     buffer_size=10000,
     seed=42,
     num_workers=2,
+    data_path="/net/tscratch/people/plgkciebiera/datasets/c4/",
 ):
     if split == "train":
         hf_dataset = load_from_disk(
-            "/net/tscratch/people/plgkciebiera/datasets/c4/train"
+            f"{data_path}train"
         )
     else:
         hf_dataset = load_from_disk(
-            "/net/tscratch/people/plgkciebiera/datasets/c4/validation"
+            f"{data_path}validation"
         )
     hf_dataset = hf_dataset.to_iterable_dataset(num_shards=64)
     hf_dataset = hf_dataset.shuffle(buffer_size=buffer_size, seed=seed)
@@ -218,9 +219,9 @@ def calculate_valid_loss(model, valid_dataloader, device, validation_steps):
 
 
 def train_model(config, device, run):  # Added 'run' parameter
-    dataloader = get_dataloader(config.batch_size, config.seq_length)
+    dataloader = get_dataloader(config.batch_size, config.seq_length, data_path=config.dataset_path)
     valid_dataloader = get_dataloader(
-        config.batch_size, config.seq_length, split="validation"
+        config.batch_size, config.seq_length, split="validation", data_path=config.dataset_path
     )
     validation_steps = int(
         1e06 // (config.batch_size * config.seq_length)
@@ -330,6 +331,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_training_steps", type=int, default=1000, help="Number of training steps"
     )
+    parser.add_argument("--dataset_path", type=str, default="/net/tscratch/people/plgkciebiera/datasets/c4/")
 
     args = parser.parse_args()
 
