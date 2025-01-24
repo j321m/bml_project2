@@ -13,6 +13,7 @@ import argparse
 import neptune  # Added import for Neptune
 import os
 
+
 class EmbeddingLayer(nn.Module):
     def __init__(self, vocab_size, embed_dim, max_len):
         super(EmbeddingLayer, self).__init__()
@@ -83,10 +84,7 @@ def FeedForward(
     return nn.Sequential(
         OrderedDict(
             [
-                (
-                    "ff_layernorm",
-                    nn.LayerNorm(dmodel)
-                ),
+                ("ff_layernorm", nn.LayerNorm(dmodel)),
                 (
                     "pre_relu",
                     nn.Linear(
@@ -110,7 +108,6 @@ def FeedForward(
 
 
 class Block(nn.Module):
-
     def __init__(
         self,
         dmodel,
@@ -177,9 +174,13 @@ def get_dataloader(
     num_workers=2,
 ):
     if split == "train":
-        hf_dataset = load_from_disk("/net/tscratch/people/plgkciebiera/datasets/c4/train")
+        hf_dataset = load_from_disk(
+            "/net/tscratch/people/plgkciebiera/datasets/c4/train"
+        )
     else:
-        hf_dataset = load_from_disk("/net/tscratch/people/plgkciebiera/datasets/c4/validation")
+        hf_dataset = load_from_disk(
+            "/net/tscratch/people/plgkciebiera/datasets/c4/validation"
+        )
     hf_dataset = hf_dataset.to_iterable_dataset(num_shards=64)
     hf_dataset = hf_dataset.shuffle(buffer_size=buffer_size, seed=seed)
     tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
@@ -215,10 +216,15 @@ def calculate_valid_loss(model, valid_dataloader, device, validation_steps):
     mean_valid_loss = sum(valid_losses) / validation_steps
     return mean_valid_loss
 
+
 def train_model(config, device, run):  # Added 'run' parameter
     dataloader = get_dataloader(config.batch_size, config.seq_length)
-    valid_dataloader = get_dataloader(config.batch_size, config.seq_length, split="validation")
-    validation_steps = int(1e06 // (config.batch_size * config.seq_length))  # we want to evaluate on 1M tokens
+    valid_dataloader = get_dataloader(
+        config.batch_size, config.seq_length, split="validation"
+    )
+    validation_steps = int(
+        1e06 // (config.batch_size * config.seq_length)
+    )  # we want to evaluate on 1M tokens
     model = Transformer(config)
     model.to(device)
     optimizer = AdamW(model.parameters(), lr=config.learning_rate)
@@ -243,19 +249,30 @@ def train_model(config, device, run):  # Added 'run' parameter
 
         if i % config.log_train_loss_freq == 0:
             print(f"Step:{i}, Train Loss:{loss}")
-            run["train/loss"].log(value=loss.item(), step=i)  # Log training loss to Neptune
+            run["train/loss"].log(
+                value=loss.item(), step=i
+            )  # Log training loss to Neptune
 
         if i % config.log_train_loss_freq == 0:
-            valid_loss = calculate_valid_loss(model, valid_dataloader, device, validation_steps)
+            valid_loss = calculate_valid_loss(
+                model, valid_dataloader, device, validation_steps
+            )
             print(f"Valid loss:{valid_loss}")
-            run["validation/loss"].log(value=valid_loss, step=i)  # Log validation loss to Neptune
+            run["validation/loss"].log(
+                value=valid_loss, step=i
+            )  # Log validation loss to Neptune
 
         loss.backward()
         optimizer.step()
 
-    final_valid_loss = calculate_valid_loss(model, valid_dataloader, device, validation_steps)
+    final_valid_loss = calculate_valid_loss(
+        model, valid_dataloader, device, validation_steps
+    )
     print(f"Final valid loss:{final_valid_loss}")
-    run["validation/final_loss"].log(final_valid_loss)  # Log final validation loss to Neptune
+    run["validation/final_loss"].log(
+        final_valid_loss
+    )  # Log final validation loss to Neptune
+
 
 def main(args):
     # Initialize Neptune
@@ -264,16 +281,20 @@ def main(args):
     if not neptune_project or not neptune_api_token:
         print(f"neptune_project: {neptune_project}")
         print(f"neptune_api_token: {neptune_api_token}")
-        raise ValueError("Neptune project or API token not set in environment variables.")
+        raise ValueError(
+            "Neptune project or API token not set in environment variables."
+        )
 
     run = neptune.init_run(
         project=neptune_project,  # Replace with your Neptune project
-        api_token=neptune_api_token,      # Replace with your Neptune API token
-        tags=[f"{key}={value}" for key, value in vars(args).items()]  # Log arguments as tags
+        api_token=neptune_api_token,  # Replace with your Neptune API token
+        tags=[
+            f"{key}={value}" for key, value in vars(args).items()
+        ],  # Log arguments as tags
     )
 
     args_dict = vars(args)
-    run['args'] = args_dict
+    run["args"] = args_dict
 
     config = SimpleNamespace(
         n_training_steps=args.n_training_steps,
@@ -287,7 +308,7 @@ def main(args):
         seq_length=256,
         batch_size=args.batch_size,
         log_train_loss_freq=100,
-        log_valid_loss_freq=100
+        log_valid_loss_freq=100,
     )
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type == "cpu":
@@ -295,13 +316,20 @@ def main(args):
     train_model(config, device, run)  # Pass 'run' to train_model
     run.stop()  # Stop Neptune run
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Transformer Model Training")
-    parser.add_argument("--n_layers", type=int, default=4, help="Number of transformer layers")
+    parser.add_argument(
+        "--n_layers", type=int, default=4, help="Number of transformer layers"
+    )
     parser.add_argument("--dmodel", type=int, default=256, help="Model dimension")
-    parser.add_argument("--n_heads", type=int, default=4, help="Number of attention heads")
+    parser.add_argument(
+        "--n_heads", type=int, default=4, help="Number of attention heads"
+    )
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
-    parser.add_argument("--n_training_steps", type=int, default=1000, help="Number of training steps")
+    parser.add_argument(
+        "--n_training_steps", type=int, default=1000, help="Number of training steps"
+    )
 
     args = parser.parse_args()
 
