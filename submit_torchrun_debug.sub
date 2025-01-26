@@ -1,0 +1,26 @@
+#!/bin/bash
+#SBATCH --job-name=Hopfield_net_v2       # Job name
+#SBATCH --output=logs/%x_%j.out          # Standard output and error log
+#SBATCH --error=logs/%x_%j.err           # Error log
+#SBATCH --gres=gpu:1                     # Request one GPU
+#SBATCH --partition=a100                  # Specify GPU partition
+#SBATCH --cpus-per-gpu=8                  # Number of CPUs per GPU
+#SBATCH --mem=100G                        # Memory requested
+#SBATCH --account=mim                     # Account name
+#SBATCH --time=0-00:05:00                 # Time limit (D-HH:MM:SS)
+
+# Load necessary modules (if any)
+# module load python/3.x
+# module load cuda/xx.x
+
+# Set up the environment
+WORK_DIR="/home/j321m_a100/bml/bml_project2"
+cd $WORK_DIR
+
+# Create and activate the virtual environment
+source bml/bin/activate
+source .env
+echo $NEPTUNE_PROJECT
+
+# Run the Python script using torchrun
+torchrun --nproc_per_node=1 main.py --dataset_path /local_storage_2/llm-random/datasets/c4_
