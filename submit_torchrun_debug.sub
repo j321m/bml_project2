@@ -9,10 +9,6 @@
 #SBATCH --account=mim                     # Account name
 #SBATCH --time=0-00:05:00                 # Time limit (D-HH:MM:SS)
 
-# Load necessary modules (if any)
-# module load python/3.x
-# module load cuda/xx.x
-
 # Set up the environment
 WORK_DIR="/home/j321m_a100/bml/bml_project2"
 cd $WORK_DIR
