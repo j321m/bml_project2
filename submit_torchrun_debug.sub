@@ -2,7 +2,7 @@
 #SBATCH --job-name=Hopfield_net_v2       # Job name
 #SBATCH --output=logs/%x_%j.out          # Standard output and error log
 #SBATCH --error=logs/%x_%j.err           # Error log
-#SBATCH --gres=gpu:1                     # Request one GPU
+#SBATCH --gres=gpu:2                     # Request one GPU
 #SBATCH --partition=a100                  # Specify GPU partition
 #SBATCH --cpus-per-gpu=8                  # Number of CPUs per GPU
 #SBATCH --mem=100G                        # Memory requested
@@ -19,4 +19,4 @@ source .env
 echo $NEPTUNE_PROJECT
 
 # Run the Python script using torchrun
-torchrun --nproc_per_node=1 main.py --dataset_path /local_storage_2/llm-random/datasets/c4_
+torchrun --nproc_per_node=2 main.py --dataset_path /local_storage_2/llm-random/datasets/c4_

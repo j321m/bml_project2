@@ -13,6 +13,8 @@ import argparse
 import neptune  # Added import for Neptune
 import os
 
+from wrap import wrap_in_fsdp
+
 
 class EmbeddingLayer(nn.Module):
     def __init__(self, vocab_size, embed_dim, max_len):
@@ -34,6 +36,27 @@ class EmbeddingLayer(nn.Module):
         return embeddings
 
 
+class AttentionMechanism(nn.Module):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+    def forward(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        attention_mask,
+        is_causal: bool,
+    ):
+        return F.scaled_dot_product_attention(
+            query=query,
+            key=key,
+            value=value,
+            attn_mask=attention_mask,
+            is_causal=is_causal,
+        )
+
+
 class AttentionLayer(nn.Module):
     def __init__(
         self,
@@ -46,6 +69,7 @@ class AttentionLayer(nn.Module):
         self.heads = heads
         self.input_projection = nn.Linear(dmodel, 3 * dmodel, bias=False)
         self.output_projection = nn.Linear(dmodel, dmodel, bias=False)
+        self.attention_mechanism = AttentionMechanism()
 
     def forward(self, x, attention_mask):
         x = self.ln(x)
@@ -65,7 +89,7 @@ class AttentionLayer(nn.Module):
                 SDPBackend.MATH,
             ]
         ):
-            attention_output = F.scaled_dot_product_attention(
+            attention_output = self.attention_mechanism(
                 query=query,
                 key=key,
                 value=value,
@@ -175,13 +199,9 @@ def get_dataloader(
     data_path="/net/tscratch/people/plgkciebiera/datasets/c4/",
 ):
     if split == "train":
-        hf_dataset = load_from_disk(
-            f"{data_path}train"
-        )
+        hf_dataset = load_from_disk(f"{data_path}train")
     else:
-        hf_dataset = load_from_disk(
-            f"{data_path}validation"
-        )
+        hf_dataset = load_from_disk(f"{data_path}validation")
     hf_dataset = hf_dataset.to_iterable_dataset(num_shards=64)
     hf_dataset = hf_dataset.shuffle(buffer_size=buffer_size, seed=seed)
     tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
@@ -219,9 +239,14 @@ def calculate_valid_loss(model, valid_dataloader, device, validation_steps):
 
 
 def train_model(config, device, run):  # Added 'run' parameter
-    dataloader = get_dataloader(config.batch_size, config.seq_length, data_path=config.dataset_path)
+    dataloader = get_dataloader(
+        config.batch_size, config.seq_length, data_path=config.dataset_path
+    )
     valid_dataloader = get_dataloader(
-        config.batch_size, config.seq_length, split="validation", data_path=config.dataset_path
+        config.batch_size,
+        config.seq_length,
+        split="validation",
+        data_path=config.dataset_path,
     )
     validation_steps = int(
         1e06 // (config.batch_size * config.seq_length)
@@ -229,6 +254,17 @@ def train_model(config, device, run):  # Added 'run' parameter
     model = Transformer(config)
     model.to(device)
     optimizer = AdamW(model.parameters(), lr=config.learning_rate)
+
+    if config.use_fsdp:
+        classes_to_wrap = [Transformer]
+
+        model = wrap_in_fsdp(
+            module=model,
+            local_rank=config.local_rank,
+            mixed_precision_dtype=config.mixed_precision_dtype,
+            classes_to_wrap=classes_to_wrap,
+            mixed_precision_ignored_classes=config.high_precision_modules,
+        )
 
     model.train()
 
@@ -294,6 +330,19 @@ def main(args):
         ],  # Log arguments as tags
     )
 
+    local_rank = int(os.environ["LOCAL_RANK"])
+    global_rank = int(os.environ["RANK"])
+
+    if args.use_fsdp == "true":
+        use_fsdp = True
+    else:
+        use_fsdp = False
+
+    if args.use_high_precision_modules == "true":
+        high_precision_modules = [nn.ReLU, AttentionMechanism]
+    else:
+        high_precision_modules = None
+
     args_dict = vars(args)
     run["args"] = args_dict
 
@@ -310,7 +359,11 @@ def main(args):
         batch_size=args.batch_size,
         log_train_loss_freq=100,
         log_valid_loss_freq=100,
-        dataset_path=args.dataset_path
+        dataset_path=args.dataset_path,
+        local_rank=local_rank,
+        global_rank=global_rank,
+        use_fsdp=use_fsdp,
+        high_precision_modules=high_precision_modules,
     )
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type == "cpu":
@@ -332,7 +385,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_training_steps", type=int, default=1000, help="Number of training steps"
     )
-    parser.add_argument("--dataset_path", type=str, default="/net/tscratch/people/plgkciebiera/datasets/c4/")
+    parser.add_argument(
+        "--dataset_path",
+        type=str,
+        default="/net/tscratch/people/plgkciebiera/datasets/c4/",
+    )
+    parser.add_argument(
+        "--use_fsdp",
+        type=str,
+        default="false",
+        help='use FSDP iff equal to string "true"',
+    )
+    parser.add_argument("--mixed_precision_dtype", type=str, default="bfloat16")
+    parser.add_argument("--use_high_precision_modules", type=str, default="true")
 
     args = parser.parse_args()
 
