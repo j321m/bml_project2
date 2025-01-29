@@ -93,7 +93,7 @@ class AttentionLayer(nn.Module):
                 query=query,
                 key=key,
                 value=value,
-                attn_mask=attention_mask,
+                attention_mask=attention_mask,
                 is_causal=True,
             )
 
