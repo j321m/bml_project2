@@ -26,7 +26,7 @@ class CosineScheduler:
                 + math.cos(
                     math.pi
                     * (step - self.lr_warmup_steps)
-                    / (self.final_lr_step - self.lr_warmup_steps)
+                    / (self.n_steps - self.lr_warmup_steps)
                 )
             )
         else:
