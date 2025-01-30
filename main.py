@@ -330,7 +330,7 @@ def train_model(config, device, run):  # Added 'run' parameter
         loss.backward()
         if i % 100 == 0:
             print_grad(model)
-        scheduler.set_lr(i)
+        scheduler.set_lr(step=i, optimizer=optimizer)
         optimizer.step()
 
     final_valid_loss = calculate_valid_loss(
