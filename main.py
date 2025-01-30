@@ -235,13 +235,13 @@ def train_model(config, device, run):  # Added 'run' parameter
     optimizer = AdamW(model.parameters(), lr=config.learning_rate)
 
     if config.use_fsdp:
-        classes_to_wrap = [Transformer]
+        classes_to_wrap = [Transformer, Block, FeedForward, AttentionLayer, EmbeddingLayer]
 
         model = wrap_in_fsdp(
             module=model,
             local_rank=config.local_rank,
             mixed_precision_dtype=config.mixed_precision_dtype,
-            classes_to_wrap=classes_to_wrap,
+            min_num_params=None,
             mixed_precision_ignored_classes=config.high_precision_modules,
         )
 
@@ -351,7 +351,7 @@ def main(args):
         batch_size_per_gpu = args.batch_size
 
     if args.use_high_precision_modules == "true":
-        high_precision_modules = [nn.ReLU, AttentionMechanism]
+        high_precision_modules = [AttentionMechanism]
     else:
         high_precision_modules = None
 

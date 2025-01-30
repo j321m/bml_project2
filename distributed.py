@@ -5,7 +5,7 @@ from functools import partial
 
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.fsdp import MixedPrecision, ShardingStrategy
-from torch.distributed.fsdp.wrap import ModuleWrapPolicy
+from torch.distributed.fsdp.wrap import ModuleWrapPolicy, size_based_auto_wrap_policy
 
 
 def collate_tokenize(tokenizer, sequence_length, data):
@@ -57,11 +57,15 @@ def wrap_in_fsdp(
     module,
     local_rank,
     mixed_precision_dtype,
-    classes_to_wrap,
+    min_num_params,
     mixed_precision_ignored_classes,
 ):
 
-    wrap_policy = ModuleWrapPolicy(classes_to_wrap)
+    wrap_policy = (
+        partial(size_based_auto_wrap_policy, min_num_params=min_num_params)
+        if min_num_params is not None
+        else size_based_auto_wrap_policy
+    )
 
     mixed_precision = MixedPrecision(
         param_dtype=mixed_precision_dtype,
