@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=Hopfield_net_v2       # Job name
+#SBATCH --job-name=schmidth_j      # Job name
 #SBATCH --output=logs/%x_%j.out          # Standard output and error log
 #SBATCH --error=logs/%x_%j.err           # Error log
 #SBATCH --gres=gpu:2                     # Request one GPU
