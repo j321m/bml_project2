@@ -227,20 +227,20 @@ def train_model(config, device, run):  # Added 'run' parameter
     else:
         data_seed = 42
     dataloader = get_dataloader(
-        config.batch_size,
+        config.batch_size_per_gpu,
         config.seq_length,
         data_path=config.dataset_path,
         seed=data_seed,
     )
     valid_dataloader = get_dataloader(
-        config.batch_size,
+        config.batch_size_per_gpu,
         config.seq_length,
         split="validation",
         data_path=config.dataset_path,
         seed=data_seed,
     )
     validation_steps = int(
-        1e06 // (config.batch_size * config.seq_length)
+        1e06 // (config.batch_size_per_gpu * config.seq_length)
     )  # we want to evaluate on 1M tokens
     model = Transformer(config)
     model.to(device)
@@ -344,10 +344,10 @@ def main(args):
     if args.use_fsdp == "true":
         assert args.batch_size % world_size == 0
         use_fsdp = True
-        batch_size = args.batch_size // world_size
+        batch_size_per_gpu = args.batch_size // world_size
     else:
         use_fsdp = False
-        batch_size = args.batch_size
+        batch_size_per_gpu = args.batch_size
 
     if args.use_high_precision_modules == "true":
         high_precision_modules = [nn.ReLU, AttentionMechanism]
@@ -370,7 +370,8 @@ def main(args):
         learning_rate=1e-4,
         dropout=0.0,
         seq_length=256,
-        batch_size=batch_size,
+        batch_size=args.batch_size,
+        batch_size_per_gpu=batch_size_per_gpu,
         log_train_loss_freq=100,
         log_valid_loss_freq=100,
         dataset_path=args.dataset_path,
