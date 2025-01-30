@@ -189,6 +189,7 @@ class Transformer(nn.Module):
 
 def calculate_valid_loss(model, valid_dataloader, device, validation_steps):
     valid_losses = []
+    model.eval()
     for _, batch in zip(range(validation_steps), valid_dataloader):
         with torch.no_grad():
             input_ids = batch["input_ids"].to(device)
@@ -205,6 +206,19 @@ def calculate_valid_loss(model, valid_dataloader, device, validation_steps):
             valid_losses.append(loss)
     mean_valid_loss = sum(valid_losses) / validation_steps
     return mean_valid_loss
+
+
+def print_grad(model):
+    last_ff = model.blocks[-1].feed_forward_layer  # Access the last feed-forward layer
+
+    # Collect gradients
+    grads = [p.grad for p in last_ff.parameters() if p.grad is not None]
+
+    # Compute mean and std of gradients
+    mean_grad = torch.cat([g.view(-1) for g in grads]).mean().item() if grads else None
+    std_grad = torch.cat([g.view(-1) for g in grads]).std().item() if grads else None
+
+    print(f"Last FF Layer Gradients - Mean: {mean_grad}, Std: {std_grad}")
 
 
 def train_model(config, device, run):  # Added 'run' parameter
@@ -295,6 +309,7 @@ def train_model(config, device, run):  # Added 'run' parameter
         if i % 100 == 0:
             print(f'rank: {config.global_rank}\tloss: {loss.item()}')
         loss.backward()
+        print_grad(model)
         optimizer.step()
 
     final_valid_loss = calculate_valid_loss(
