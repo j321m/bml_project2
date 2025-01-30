@@ -21,9 +21,11 @@ def initialize_distributed(device):
     dist.init_process_group(backend="nccl", init_method="env://", rank=global_rank)
     world_size = dist.get_world_size()
 
-    # Set the device for the current process
-    torch.cuda.set_device(local_rank)
-    device = torch.device(device, local_rank)
+    if device.startswith("cuda"):
+        torch.cuda.set_device(local_rank)
+        device = torch.device(f"cuda:{local_rank}")
+    else:
+        device = torch.device("cpu")
 
     return device, global_rank, local_rank, world_size
 
