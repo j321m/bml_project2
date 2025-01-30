@@ -19,4 +19,4 @@ source .env
 echo $NEPTUNE_PROJECT
 
 # Run the Python script using torchrun
-torchrun --nproc_per_node=2 main.py --dataset_path /local_storage_2/llm-random/datasets/c4_ --use_fsdp true
+torchrun --nproc_per_node=2 main.py --dataset_path /local_storage_2/llm-random/datasets/c4_ --use_fsdp true --device cpu
