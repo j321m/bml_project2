@@ -277,28 +277,30 @@ def train_model(config, device, run):  # Added 'run' parameter
         )
         mask_loss = mask_loss[attention_mask.reshape(-1) == 1]
         loss = mask_loss.mean()
-        loss_for_logging = torch.tensor(loss.item(), device=device)
-        dist.reduce(loss_for_logging, dst=0, op=dist.ReduceOp.SUM)
 
-        if i % config.log_train_loss_freq == 0 and config.global_rank == 0:
-            loss_for_logging /= dist.get_world_size()
-            print(f"Step:{i}, Train Loss:{loss_for_logging}")
-            run["train/loss"].log(
-                value=loss_for_logging.item(), step=i
-            )  # Log training loss to Neptune
+        with torch.no_grad():
+            loss_for_logging = torch.tensor(loss.item(), device=device)
+            dist.reduce(loss_for_logging, dst=0, op=dist.ReduceOp.SUM)
 
-        if i % config.log_train_loss_freq == 0:
-            valid_loss = calculate_valid_loss(
-                model, valid_dataloader, device, validation_steps
-            )
-            valid_loss = torch.tensor(loss.item(), device=device)
-            dist.reduce(valid_loss, dst=0, op=dist.ReduceOp.SUM)
-            if config.global_rank == 0:
-                valid_loss /= dist.get_world_size()
-                print(f"Valid loss:{valid_loss}")
-                run["validation/loss"].log(
-                    value=valid_loss, step=i
-                )  # Log validation loss to Neptune
+            if i % config.log_train_loss_freq == 0 and config.global_rank == 0:
+                loss_for_logging /= dist.get_world_size()
+                print(f"Step:{i}, Train Loss:{loss_for_logging}")
+                run["train/loss"].log(
+                    value=loss_for_logging.item(), step=i
+                )  # Log training loss to Neptune
+
+            if i % config.log_train_loss_freq == 0:
+                valid_loss = calculate_valid_loss(
+                    model, valid_dataloader, device, validation_steps
+                )
+                valid_loss = torch.tensor(loss.item(), device=device)
+                dist.reduce(valid_loss, dst=0, op=dist.ReduceOp.SUM)
+                if config.global_rank == 0:
+                    valid_loss /= dist.get_world_size()
+                    print(f"Valid loss:{valid_loss}")
+                    run["validation/loss"].log(
+                        value=valid_loss, step=i
+                    )  # Log validation loss to Neptune
 
         loss.backward()
         optimizer.step()
