@@ -261,7 +261,7 @@ def train_model(config, device, run):  # Added 'run' parameter
     for i, batch in zip(range(config.n_training_steps), dataloader):
         input_ids = batch["input_ids"].to(device)
         target_ids = batch["target_ids"].to(device)
-        attention_mask = batch["attention_mask"]
+        attention_mask = batch["attention_mask"].to(device)
         if i < 2:
             print(
                 f'i: {i}t\trank, seed: {config.global_rank}, {data_seed}\tids: {batch["input_ids"][:5]}'
