@@ -280,7 +280,8 @@ def train_model(config, device, run):  # Added 'run' parameter
 
         with torch.no_grad():
             loss_for_logging = torch.tensor(loss.item(), device=device)
-            dist.reduce(loss_for_logging, dst=0, op=dist.ReduceOp.SUM)
+            if config.use_fsdp:
+                dist.reduce(loss_for_logging, dst=0, op=dist.ReduceOp.SUM)
 
             if i % config.log_train_loss_freq == 0 and config.global_rank == 0:
                 loss_for_logging /= dist.get_world_size()
@@ -294,7 +295,8 @@ def train_model(config, device, run):  # Added 'run' parameter
                     model, valid_dataloader, device, validation_steps
                 )
                 valid_loss = torch.tensor(valid_loss, device=device)
-                dist.reduce(valid_loss, dst=0, op=dist.ReduceOp.SUM)
+                if config.use_fsdp:
+                    dist.reduce(valid_loss, dst=0, op=dist.ReduceOp.SUM)
                 if config.global_rank == 0:
                     valid_loss /= dist.get_world_size()
                     print(f"Valid loss:{valid_loss}")
