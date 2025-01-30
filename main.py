@@ -346,6 +346,10 @@ def main(args):
         assert args.batch_size % world_size == 0
         use_fsdp = True
         batch_size_per_gpu = args.batch_size // world_size
+        if args.mixed_precision_dtype == "bfloat16":
+            mixed_precision_dtype = torch.bfloat16
+        else:
+            mixed_precision_dtype = torch.float32
     else:
         use_fsdp = False
         batch_size_per_gpu = args.batch_size
@@ -380,7 +384,7 @@ def main(args):
         global_rank=global_rank,
         use_fsdp=use_fsdp,
         high_precision_modules=high_precision_modules,
-        mixed_precision_dtype=args.mixed_precision_dtype,
+        mixed_precision_dtype=mixed_precision_dtype,
     )
     if device.type == "cpu":
         print(f"Device type is: {device}. Remember to train on GPU.")
