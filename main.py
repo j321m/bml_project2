@@ -246,7 +246,6 @@ def train_model(config, device, run):  # Added 'run' parameter
     )  # we want to evaluate on 1M tokens
     model = Transformer(config)
     model.to(device)
-    optimizer = AdamW(model.parameters(), lr=config.learning_rate)
 
     if config.use_fsdp:
         classes_to_wrap = [Transformer, Block, FeedForward, AttentionLayer, EmbeddingLayer]
@@ -258,6 +257,7 @@ def train_model(config, device, run):  # Added 'run' parameter
             min_num_params=300,
             mixed_precision_ignored_classes=config.high_precision_modules,
         )
+    optimizer = AdamW(model.parameters(), lr=config.learning_rate)
 
     model.train()
 
