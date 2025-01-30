@@ -12,6 +12,7 @@ import neptune  # Added import for Neptune
 import os
 
 from distributed import wrap_in_fsdp, get_dataloader
+from scheduler import CosineScheduler
 
 
 def initialize_distributed(device):
@@ -248,7 +249,13 @@ def train_model(config, device, run):  # Added 'run' parameter
     model.to(device)
 
     if config.use_fsdp:
-        classes_to_wrap = [Transformer, Block, FeedForward, AttentionLayer, EmbeddingLayer]
+        classes_to_wrap = [
+            Transformer,
+            Block,
+            FeedForward,
+            AttentionLayer,
+            EmbeddingLayer,
+        ]
 
         model = wrap_in_fsdp(
             module=model,
@@ -257,7 +264,14 @@ def train_model(config, device, run):  # Added 'run' parameter
             min_num_params=300,
             mixed_precision_ignored_classes=config.high_precision_modules,
         )
+
     optimizer = AdamW(model.parameters(), lr=config.learning_rate)
+    scheduler = CosineScheduler(
+        n_steps=config.n_training_steps,
+        lr=config.learning_rate,
+        lr_warmup_fraction=args.lr_warmup_fraction,
+        final_lr_fraction=args.final_lr_fraction,
+    )
 
     model.train()
 
@@ -292,6 +306,10 @@ def train_model(config, device, run):  # Added 'run' parameter
                 run["train/loss"].log(
                     value=loss_for_logging.item(), step=i
                 )  # Log training loss to Neptune
+                lr_for_logging = scheduler.get_lr(i)
+                run["learning_rate"].log(
+                    value=lr_for_logging, step=i
+                )  # Log training loss to Neptune
 
             if i % config.log_train_loss_freq == 0:
                 valid_loss = calculate_valid_loss(
@@ -308,10 +326,11 @@ def train_model(config, device, run):  # Added 'run' parameter
                     )  # Log validation loss to Neptune
 
         if i % 100 == 0:
-            print(f'rank: {config.global_rank}\tloss: {loss.item()}')
+            print(f"rank: {config.global_rank}\tloss: {loss.item()}")
         loss.backward()
         if i % 100 == 0:
             print_grad(model)
+        scheduler.set_lr(i)
         optimizer.step()
 
     final_valid_loss = calculate_valid_loss(
@@ -350,7 +369,9 @@ def init_neptune_run(rank):
 
 def main(args):
     if args.use_fsdp == "true":
-        device, global_rank, local_rank, world_size = initialize_distributed(args.device)
+        device, global_rank, local_rank, world_size = initialize_distributed(
+            args.device
+        )
         print(f"global_rank: {global_rank}")
         print(f"local_rank: {local_rank}")
         assert args.batch_size % world_size == 0
@@ -379,13 +400,15 @@ def main(args):
         run["args"] = args_dict
 
     config = SimpleNamespace(
-        n_training_steps=args.n_training_steps,
         vocab_size=50257,
         max_len=256,
         dmodel=args.dmodel,
         n_heads=4,
         n_layers=args.n_layers,
         learning_rate=1e-4,
+        n_training_steps=args.n_training_steps,
+        lr_warmup_fraction=args.lr_warmup_fraction,
+        final_lr_fraction=args.final_lr_fraction,
         dropout=0.0,
         seq_length=256,
         batch_size=args.batch_size,
@@ -416,10 +439,8 @@ if __name__ == "__main__":
         "--n_heads", type=int, default=4, help="Number of attention heads"
     )
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
-    parser.add_argument("--device", type=str, default='cuda')
-    parser.add_argument(
-        "--n_training_steps", type=int, default=1000, help="Number of training steps"
-    )
+    parser.add_argument("--device", type=str, default="cuda")
+
     parser.add_argument(
         "--dataset_path",
         type=str,
@@ -433,6 +454,11 @@ if __name__ == "__main__":
     )
     parser.add_argument("--mixed_precision_dtype", type=str, default="bfloat16")
     parser.add_argument("--use_high_precision_modules", type=str, default="true")
+
+    parser.add_argument("--n_training_steps", type=int, default=1000)
+    parser.add_argument("--learning_rate", type=int, default=1e-4)
+    parser.add_argument("--lr_warmup_fraction", type=int, default=0.01)
+    parser.add_argument("--final_lr_fraction", type=int, default=0.1)
 
     args = parser.parse_args()
 
