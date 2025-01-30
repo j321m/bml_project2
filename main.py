@@ -340,11 +340,10 @@ def init_neptune_run(rank):
 
 
 def main(args):
-    device, global_rank, local_rank, world_size = initialize_distributed()
-    print(f"global_rank: {global_rank}")
-    print(f"local_rank: {local_rank}")
-
     if args.use_fsdp == "true":
+        device, global_rank, local_rank, world_size = initialize_distributed()
+        print(f"global_rank: {global_rank}")
+        print(f"local_rank: {local_rank}")
         assert args.batch_size % world_size == 0
         use_fsdp = True
         batch_size_per_gpu = args.batch_size // world_size
@@ -353,6 +352,8 @@ def main(args):
         else:
             mixed_precision_dtype = torch.float32
     else:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        global_rank = local_rank = 0
         use_fsdp = False
         batch_size_per_gpu = args.batch_size
 
