@@ -264,7 +264,7 @@ def train_model(config, device, run):  # Added 'run' parameter
         target_ids = batch["target_ids"].to(device)
         attention_mask = batch["attention_mask"]
         if i < 2:
-            print(f'i: {i}t\trank: {config.global_rank}\tids: {batch["input_ids"][:5]}')
+            print(f'i: {i}t\trank, seed: {config.global_rank}, {data_seed}\tids: {batch["input_ids"][:5]}')
 
         optimizer.zero_grad()
         outputs = model(input_ids)
