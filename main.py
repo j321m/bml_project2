@@ -301,7 +301,7 @@ def train_model(config, device, run):  # Added 'run' parameter
                     run["validation/loss"].log(
                         value=valid_loss, step=i
                     )  # Log validation loss to Neptune
-
+        print(f'rank: {config.global_rank}\tloss: {loss.item()}')
         loss.backward()
         optimizer.step()
 
