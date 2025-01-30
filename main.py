@@ -223,8 +223,10 @@ def calculate_valid_loss(model, valid_dataloader, device, validation_steps):
 def train_model(config, device, run):  # Added 'run' parameter
     if config.use_fsdp:
         data_seed = config.global_rank + 42
+        world_size = dist.get_world_size()
     else:
         data_seed = 42
+        world_size = 1
     dataloader = get_dataloader(
         config.batch_size_per_gpu,
         config.seq_length,
@@ -284,7 +286,7 @@ def train_model(config, device, run):  # Added 'run' parameter
                 dist.reduce(loss_for_logging, dst=0, op=dist.ReduceOp.SUM)
 
             if i % config.log_train_loss_freq == 0 and config.global_rank == 0:
-                loss_for_logging /= dist.get_world_size()
+                loss_for_logging /= world_size
                 print(f"Step:{i}, Train Loss:{loss_for_logging}")
                 run["train/loss"].log(
                     value=loss_for_logging.item(), step=i
@@ -298,7 +300,7 @@ def train_model(config, device, run):  # Added 'run' parameter
                 if config.use_fsdp:
                     dist.reduce(valid_loss, dst=0, op=dist.ReduceOp.SUM)
                 if config.global_rank == 0:
-                    valid_loss /= dist.get_world_size()
+                    valid_loss /= world_size
                     print(f"Valid loss:{valid_loss}")
                     run["validation/loss"].log(
                         value=valid_loss, step=i
