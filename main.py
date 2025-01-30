@@ -14,7 +14,7 @@ import os
 from distributed import wrap_in_fsdp, get_dataloader
 
 
-def initialize_distributed():
+def initialize_distributed(device):
     # Initialize the process group
     local_rank = int(os.environ["LOCAL_RANK"])
     global_rank = int(os.environ["RANK"])
@@ -22,7 +22,7 @@ def initialize_distributed():
 
     # Set the device for the current process
     torch.cuda.set_device(local_rank)
-    device = torch.device("cuda", local_rank)
+    device = torch.device(device, local_rank)
 
     dist.init_process_group("nccl", rank=global_rank, world_size=world_size)
 
@@ -346,7 +346,7 @@ def init_neptune_run(rank):
 
 def main(args):
     if args.use_fsdp == "true":
-        device, global_rank, local_rank, world_size = initialize_distributed()
+        device, global_rank, local_rank, world_size = initialize_distributed(args.device)
         print(f"global_rank: {global_rank}")
         print(f"local_rank: {local_rank}")
         assert args.batch_size % world_size == 0
@@ -357,7 +357,7 @@ def main(args):
         else:
             mixed_precision_dtype = torch.float32
     else:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device(args.device)
         global_rank = local_rank = 0
         mixed_precision_dtype = None
         use_fsdp = False
@@ -412,6 +412,7 @@ if __name__ == "__main__":
         "--n_heads", type=int, default=4, help="Number of attention heads"
     )
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
+    parser.add_argument("--device", type=str, default='cuda')
     parser.add_argument(
         "--n_training_steps", type=int, default=1000, help="Number of training steps"
     )
