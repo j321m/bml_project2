@@ -241,7 +241,7 @@ def train_model(config, device, run):  # Added 'run' parameter
             module=model,
             local_rank=config.local_rank,
             mixed_precision_dtype=config.mixed_precision_dtype,
-            min_num_params=None,
+            min_num_params=300,
             mixed_precision_ignored_classes=config.high_precision_modules,
         )
 
