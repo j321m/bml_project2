@@ -354,6 +354,7 @@ def main(args):
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         global_rank = local_rank = 0
+        mixed_precision_dtype = None
         use_fsdp = False
         batch_size_per_gpu = args.batch_size
 
