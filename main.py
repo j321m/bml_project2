@@ -1,6 +1,7 @@
 from functools import partial
 import torch
 import torch.nn as nn
+import torch.distributed as dist
 from torch.utils.data import DataLoader
 from types import SimpleNamespace
 from torch.optim import AdamW
@@ -14,6 +15,21 @@ import neptune  # Added import for Neptune
 import os
 
 from wrap import wrap_in_fsdp
+
+
+def initialize_distributed():
+    # Initialize the process group
+    local_rank = int(os.environ["LOCAL_RANK"])
+    global_rank = int(os.environ["RANK"])
+    world_size = dist.get_world_size()
+
+    # Set the device for the current process
+    torch.cuda.set_device(local_rank)
+    device = torch.device("cuda", local_rank)
+
+    dist.init_process_group("nccl", rank=global_rank, world_size=world_size)
+
+    return device, global_rank, local_rank, world_size
 
 
 class EmbeddingLayer(nn.Module):
@@ -239,14 +255,22 @@ def calculate_valid_loss(model, valid_dataloader, device, validation_steps):
 
 
 def train_model(config, device, run):  # Added 'run' parameter
+    if config.use_fsdp:
+        data_seed = config.global_rank + 42
+    else:
+        data_seed = 42
     dataloader = get_dataloader(
-        config.batch_size, config.seq_length, data_path=config.dataset_path
+        config.batch_size,
+        config.seq_length,
+        data_path=config.dataset_path,
+        seed=data_seed,
     )
     valid_dataloader = get_dataloader(
         config.batch_size,
         config.seq_length,
         split="validation",
         data_path=config.dataset_path,
+        seed=data_seed,
     )
     validation_steps = int(
         1e06 // (config.batch_size * config.seq_length)
@@ -283,21 +307,26 @@ def train_model(config, device, run):  # Added 'run' parameter
         )
         mask_loss = mask_loss[attention_mask.reshape(-1) == 1]
         loss = mask_loss.mean()
+        loss_for_logging = torch.tensor(loss.item(), device=device)
+        dist.reduce(loss_for_logging, dst=0, op=dist.ReduceOp.SUM)
 
-        if i % config.log_train_loss_freq == 0:
-            print(f"Step:{i}, Train Loss:{loss}")
+        if i % config.log_train_loss_freq == 0 and config.global_rank == 0:
+            print(f"Step:{i}, Train Loss:{loss_for_logging}")
             run["train/loss"].log(
-                value=loss.item(), step=i
+                value=loss_for_logging.item(), step=i
             )  # Log training loss to Neptune
 
         if i % config.log_train_loss_freq == 0:
             valid_loss = calculate_valid_loss(
                 model, valid_dataloader, device, validation_steps
             )
-            print(f"Valid loss:{valid_loss}")
-            run["validation/loss"].log(
-                value=valid_loss, step=i
-            )  # Log validation loss to Neptune
+            valid_loss = torch.tensor(loss.item(), device=device)
+            dist.reduce(valid_loss, dst=0, op=dist.ReduceOp.SUM)
+            if config.global_rank == 0:
+                print(f"Valid loss:{valid_loss}")
+                run["validation/loss"].log(
+                    value=valid_loss, step=i
+                )  # Log validation loss to Neptune
 
         loss.backward()
         optimizer.step()
@@ -306,45 +335,58 @@ def train_model(config, device, run):  # Added 'run' parameter
         model, valid_dataloader, device, validation_steps
     )
     print(f"Final valid loss:{final_valid_loss}")
-    run["validation/final_loss"].log(
-        final_valid_loss
-    )  # Log final validation loss to Neptune
+    if config.global_rank == 0:
+        run["validation/final_loss"].log(
+            final_valid_loss
+        )  # Log final validation loss to Neptune
+
+
+def init_neptune_run(rank):
+    if rank == 0:
+        # Initialize Neptune
+        neptune_project = os.getenv("NEPTUNE_PROJECT")
+        neptune_api_token = os.getenv("NEPTUNE_API_TOKEN")
+        if not neptune_project or not neptune_api_token:
+            print(f"neptune_project: {neptune_project}")
+            print(f"neptune_api_token: {neptune_api_token}")
+            raise ValueError(
+                "Neptune project or API token not set in environment variables."
+            )
+
+        run = neptune.init_run(
+            project=neptune_project,  # Replace with your Neptune project
+            api_token=neptune_api_token,  # Replace with your Neptune API token
+            tags=[
+                f"{key}={value}" for key, value in vars(args).items()
+            ],  # Log arguments as tags
+        )
+        return run
+    else:
+        return None
 
 
 def main(args):
-    # Initialize Neptune
-    neptune_project = os.getenv("NEPTUNE_PROJECT")
-    neptune_api_token = os.getenv("NEPTUNE_API_TOKEN")
-    if not neptune_project or not neptune_api_token:
-        print(f"neptune_project: {neptune_project}")
-        print(f"neptune_api_token: {neptune_api_token}")
-        raise ValueError(
-            "Neptune project or API token not set in environment variables."
-        )
-
-    run = neptune.init_run(
-        project=neptune_project,  # Replace with your Neptune project
-        api_token=neptune_api_token,  # Replace with your Neptune API token
-        tags=[
-            f"{key}={value}" for key, value in vars(args).items()
-        ],  # Log arguments as tags
-    )
-
-    local_rank = int(os.environ["LOCAL_RANK"])
-    global_rank = int(os.environ["RANK"])
+    device, global_rank, local_rank, world_size = initialize_distributed()
+    print(f"global_rank: {global_rank}")
+    print(f"local_rank: {local_rank}")
 
     if args.use_fsdp == "true":
         use_fsdp = True
+        batch_size = args.batch_size
     else:
         use_fsdp = False
+        batch_size = args.batch_size
 
     if args.use_high_precision_modules == "true":
         high_precision_modules = [nn.ReLU, AttentionMechanism]
     else:
         high_precision_modules = None
 
-    args_dict = vars(args)
-    run["args"] = args_dict
+    run = init_neptune_run(global_rank)
+
+    if global_rank == 0:
+        args_dict = vars(args)
+        run["args"] = args_dict
 
     config = SimpleNamespace(
         n_training_steps=args.n_training_steps,
@@ -356,7 +398,7 @@ def main(args):
         learning_rate=1e-4,
         dropout=0.0,
         seq_length=256,
-        batch_size=args.batch_size,
+        batch_size=batch_size,
         log_train_loss_freq=100,
         log_valid_loss_freq=100,
         dataset_path=args.dataset_path,
@@ -365,11 +407,11 @@ def main(args):
         use_fsdp=use_fsdp,
         high_precision_modules=high_precision_modules,
     )
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type == "cpu":
         print(f"Device type is: {device}. Remember to train on GPU.")
     train_model(config, device, run)  # Pass 'run' to train_model
-    run.stop()  # Stop Neptune run
+    if global_rank == 0:
+        run.stop()  # Stop Neptune run
 
 
 if __name__ == "__main__":
