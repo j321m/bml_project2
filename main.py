@@ -311,7 +311,7 @@ def train_model(config, device, run):  # Added 'run' parameter
                     value=lr_for_logging, step=i
                 )  # Log training loss to Neptune
 
-            if i % config.log_train_loss_freq == 0:
+            if i % config.log_valid_loss_freq == 0:
                 valid_loss = calculate_valid_loss(
                     model, valid_dataloader, device, validation_steps
                 )
@@ -413,7 +413,7 @@ def main(args):
         seq_length=256,
         batch_size=args.batch_size,
         batch_size_per_gpu=batch_size_per_gpu,
-        log_train_loss_freq=100,
+        log_train_loss_freq=50,
         log_valid_loss_freq=100,
         dataset_path=args.dataset_path,
         local_rank=local_rank,
