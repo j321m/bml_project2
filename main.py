@@ -280,32 +280,33 @@ def train_model(config, device, run):  # Added 'run' parameter
         mask_loss = mask_loss[attention_mask.reshape(-1) == 1]
         loss = mask_loss.mean()
 
-        with torch.no_grad():
-            loss_for_logging = torch.tensor(loss.item(), device=device)
-            if config.use_fsdp:
-                dist.reduce(loss_for_logging, dst=0, op=dist.ReduceOp.SUM)
+        # with torch.no_grad():
+        #     loss_for_logging = torch.tensor(loss.item(), device=device)
+        #     if config.use_fsdp:
+        #         dist.reduce(loss_for_logging, dst=0, op=dist.ReduceOp.SUM)
 
-            if i % config.log_train_loss_freq == 0 and config.global_rank == 0:
-                loss_for_logging /= world_size
-                print(f"Step:{i}, Train Loss:{loss_for_logging}")
-                run["train/loss"].log(
-                    value=loss_for_logging.item(), step=i
-                )  # Log training loss to Neptune
+        #     if i % config.log_train_loss_freq == 0 and config.global_rank == 0:
+        #         loss_for_logging /= world_size
+        #         print(f"Step:{i}, Train Loss:{loss_for_logging}")
+        #         run["train/loss"].log(
+        #             value=loss_for_logging.item(), step=i
+        #         )  # Log training loss to Neptune
 
-            if i % config.log_train_loss_freq == 0:
-                valid_loss = calculate_valid_loss(
-                    model, valid_dataloader, device, validation_steps
-                )
-                valid_loss = torch.tensor(valid_loss, device=device)
-                if config.use_fsdp:
-                    dist.reduce(valid_loss, dst=0, op=dist.ReduceOp.SUM)
-                if config.global_rank == 0:
-                    valid_loss /= world_size
-                    print(f"Valid loss:{valid_loss}")
-                    run["validation/loss"].log(
-                        value=valid_loss, step=i
-                    )  # Log validation loss to Neptune
-        print(f'rank: {config.global_rank}\tloss: {loss.item()}')
+        #     if i % config.log_train_loss_freq == 0:
+        #         valid_loss = calculate_valid_loss(
+        #             model, valid_dataloader, device, validation_steps
+        #         )
+        #         valid_loss = torch.tensor(valid_loss, device=device)
+        #         if config.use_fsdp:
+        #             dist.reduce(valid_loss, dst=0, op=dist.ReduceOp.SUM)
+        #         if config.global_rank == 0:
+        #             valid_loss /= world_size
+        #             print(f"Valid loss:{valid_loss}")
+        #             run["validation/loss"].log(
+        #                 value=valid_loss, step=i
+        #             )  # Log validation loss to Neptune
+        if i % 100 == 0:
+            print(f'rank: {config.global_rank}\tloss: {loss.item()}')
         loss.backward()
         optimizer.step()
 
