@@ -43,7 +43,6 @@ def initialize_distributed():
     return device, global_rank, local_rank, world_size
 
 
-
 class EmbeddingLayer(nn.Module):
     def __init__(self, vocab_size, embed_dim, max_len):
         super(EmbeddingLayer, self).__init__()
@@ -264,7 +263,9 @@ def train_model(config, device, run):  # Added 'run' parameter
         target_ids = batch["target_ids"].to(device)
         attention_mask = batch["attention_mask"]
         if i < 2:
-            print(f'i: {i}t\trank, seed: {config.global_rank}, {data_seed}\tids: {batch["input_ids"][:5]}')
+            print(
+                f'i: {i}t\trank, seed: {config.global_rank}, {data_seed}\tids: {batch["input_ids"][:5]}'
+            )
 
         optimizer.zero_grad()
         outputs = model(input_ids)
@@ -379,6 +380,7 @@ def main(args):
         global_rank=global_rank,
         use_fsdp=use_fsdp,
         high_precision_modules=high_precision_modules,
+        mixed_precision_dtype=args.mixed_precision_dtype,
     )
     if device.type == "cpu":
         print(f"Device type is: {device}. Remember to train on GPU.")
