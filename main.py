@@ -30,18 +30,18 @@ def initialize_distributed():
 
 
 def initialize_distributed():
-    # Initialize the process group
+    # Get rank and local rank from environment variables
     local_rank = int(os.environ["LOCAL_RANK"])
     global_rank = int(os.environ["RANK"])
+    dist.init_process_group(backend="nccl", init_method="env://", rank=global_rank)
     world_size = dist.get_world_size()
 
     # Set the device for the current process
     torch.cuda.set_device(local_rank)
     device = torch.device("cuda", local_rank)
 
-    dist.init_process_group("nccl", rank=global_rank, world_size=world_size)
-
     return device, global_rank, local_rank, world_size
+
 
 
 class EmbeddingLayer(nn.Module):
