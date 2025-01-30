@@ -278,6 +278,7 @@ def train_model(config, device, run):  # Added 'run' parameter
         dist.reduce(loss_for_logging, dst=0, op=dist.ReduceOp.SUM)
 
         if i % config.log_train_loss_freq == 0 and config.global_rank == 0:
+            loss_for_logging /= dist.get_world_size()
             print(f"Step:{i}, Train Loss:{loss_for_logging}")
             run["train/loss"].log(
                 value=loss_for_logging.item(), step=i
@@ -290,6 +291,7 @@ def train_model(config, device, run):  # Added 'run' parameter
             valid_loss = torch.tensor(loss.item(), device=device)
             dist.reduce(valid_loss, dst=0, op=dist.ReduceOp.SUM)
             if config.global_rank == 0:
+                valid_loss /= dist.get_world_size()
                 print(f"Valid loss:{valid_loss}")
                 run["validation/loss"].log(
                     value=valid_loss, step=i
@@ -338,8 +340,9 @@ def main(args):
     print(f"local_rank: {local_rank}")
 
     if args.use_fsdp == "true":
+        assert args.batch_size % world_size == 0
         use_fsdp = True
-        batch_size = args.batch_size
+        batch_size = args.batch_size // world_size
     else:
         use_fsdp = False
         batch_size = args.batch_size
