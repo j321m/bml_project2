@@ -293,7 +293,7 @@ def train_model(config, device, run):  # Added 'run' parameter
                 valid_loss = calculate_valid_loss(
                     model, valid_dataloader, device, validation_steps
                 )
-                valid_loss = torch.tensor(valid_loss.item(), device=device)
+                valid_loss = torch.tensor(valid_loss, device=device)
                 dist.reduce(valid_loss, dst=0, op=dist.ReduceOp.SUM)
                 if config.global_rank == 0:
                     valid_loss /= dist.get_world_size()
