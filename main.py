@@ -309,7 +309,8 @@ def train_model(config, device, run):  # Added 'run' parameter
         if i % 100 == 0:
             print(f'rank: {config.global_rank}\tloss: {loss.item()}')
         loss.backward()
-        print_grad(model)
+        if i % 100 == 0:
+            print_grad(model)
         optimizer.step()
 
     final_valid_loss = calculate_valid_loss(
