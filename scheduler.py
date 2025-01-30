@@ -32,7 +32,7 @@ class CosineScheduler:
         else:
             return self.lr * self.final_lr_fraction
 
-    def set_lr(step, optimizer):
+    def set_lr(self, step, optimizer):
         new_lr = self.get_lr(step)
         for param_group in optimizer.param_groups:
             param_group["lr"] = new_lr
