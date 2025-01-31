@@ -32,10 +32,10 @@ def initialize_distributed(device):
 
 
 class EmbeddingLayer(nn.Module):
-    def __init__(self, vocab_size, embed_dim, max_len):
+    def __init__(self, vocab_size, embed_dim, seq_len):
         super(EmbeddingLayer, self).__init__()
         self.token_embedding = nn.Embedding(vocab_size, embed_dim)
-        self.position_embedding = nn.Embedding(max_len, embed_dim)
+        self.position_embedding = nn.Embedding(seq_len, embed_dim)
 
     def forward(self, x):
         # x: (batch_size, seq_len)
@@ -170,7 +170,7 @@ class Transformer(nn.Module):
         super().__init__()
         self.config = config
         self.embedding_layer = EmbeddingLayer(
-            config.vocab_size, config.dmodel, config.max_len
+            config.vocab_size, config.dmodel, config.seq_len
         )
         self.blocks = nn.ModuleList(
             [Block(config.dmodel, config.n_heads) for _ in range(config.n_layers)]
@@ -231,19 +231,19 @@ def train_model(config, device, run):  # Added 'run' parameter
         world_size = 1
     dataloader = get_dataloader(
         config.batch_size_per_gpu,
-        config.seq_length,
+        config.seq_len,
         data_path=config.dataset_path,
         seed=data_seed,
     )
     valid_dataloader = get_dataloader(
         config.batch_size_per_gpu,
-        config.seq_length,
+        config.seq_len,
         split="validation",
         data_path=config.dataset_path,
         seed=data_seed,
     )
     validation_steps = int(
-        1e06 // (config.batch_size_per_gpu * config.seq_length)
+        1e06 // (config.batch_size_per_gpu * config.seq_len)
     )  # we want to evaluate on 1M tokens
     model = Transformer(config)
     model.to(device)
@@ -401,20 +401,19 @@ def main(args):
 
     config = SimpleNamespace(
         vocab_size=50257,
-        max_len=256,
         dmodel=args.dmodel,
         n_heads=4,
         n_layers=args.n_layers,
-        learning_rate=1e-4,
+        learning_rate=args.learning_rate,
         n_training_steps=args.n_training_steps,
         lr_warmup_fraction=args.lr_warmup_fraction,
         final_lr_fraction=args.final_lr_fraction,
         dropout=0.0,
-        seq_length=256,
+        seq_len=args.seq_len,
         batch_size=args.batch_size,
         batch_size_per_gpu=batch_size_per_gpu,
-        log_train_loss_freq=50,
-        log_valid_loss_freq=100,
+        log_train_loss_freq=args.log_train_loss_freq,
+        log_valid_loss_freq=args.log_valid_loss_freq,
         dataset_path=args.dataset_path,
         local_rank=local_rank,
         global_rank=global_rank,
@@ -439,6 +438,7 @@ if __name__ == "__main__":
         "--n_heads", type=int, default=4, help="Number of attention heads"
     )
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
+    parser.add_argument("--seq_len", type=int, default=256)
     parser.add_argument("--device", type=str, default="cuda")
 
     parser.add_argument(
@@ -456,9 +456,13 @@ if __name__ == "__main__":
     parser.add_argument("--use_high_precision_modules", type=str, default="true")
 
     parser.add_argument("--n_training_steps", type=int, default=1001)
-    parser.add_argument("--learning_rate", type=int, default=1e-4)
-    parser.add_argument("--lr_warmup_fraction", type=int, default=0.01)
-    parser.add_argument("--final_lr_fraction", type=int, default=0.1)
+    parser.add_argument("--learning_rate", type=float, default=1e-4)
+    parser.add_argument("--lr_warmup_fraction", type=float, default=0.01)
+    parser.add_argument("--final_lr_fraction", type=float, default=0.1)
+
+    parser.add_argument("--log_train_loss_freq", type=int, default=100)
+    parser.add_argument("--log_valid_loss_freq", type=int, default=200)
+
 
     args = parser.parse_args()
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH --job-name=bml_adambiel
+#SBATCH --job-name=grid
 #SBATCH --partition=plgrid-gpu-a100
 #SBATCH --account=plgllmparamgr-gpu-a100
 #SBATCH --cpus-per-gpu=8
@@ -48,15 +48,12 @@ srun torchrun \
   --nnodes=$SLURM_NNODES \
   --rdzv_id $RANDOM --rdzv_backend c10d  --rdzv_endpoint $head_node_ip:29500 \
   main.py \
-    --train_steps=4417 \
-    --vocab_size=50257 \
-    --max_len=256 \
-    --d_model=256 \
-    --num_heads=4 \
-    --num_layers=4 \
-    --learning_rate=$learning_rate \
-    --dropout=0.0 \
-    --seq_length=256 \
+    --n_training_steps=8812 \
+    --seq_len=256 \
+    --dmodel=256 \
+    --n_heads=4 \
+    --n_layers=4 \
+    --learning_rate=0.0001 \
     --batch_size=256 \
     --log_train_loss_freq=100 \
     --log_valid_loss_freq=100
