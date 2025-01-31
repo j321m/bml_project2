@@ -7,10 +7,6 @@ head = dmodel * vocab
 block = 12 * (dmodel ** 2)
 total_params = embedding + n_layers * block + head
 
-# print(f'embedding: {embedding}')
-# print(f'head: {head}')
-# print(f'block: {block}')
-
 print(f'total_params: {total_params}')
 
 n_tokens = total_params * 20
