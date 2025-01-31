@@ -57,15 +57,11 @@ def wrap_in_fsdp(
     module,
     local_rank,
     mixed_precision_dtype,
-    min_num_params,
+    modules_to_wrap,
     mixed_precision_ignored_classes,
 ):
 
-    wrap_policy = (
-        partial(size_based_auto_wrap_policy, min_num_params=min_num_params)
-        if min_num_params is not None
-        else size_based_auto_wrap_policy
-    )
+    wrap_policy = ModuleWrapPolicy(modules_to_wrap)
 
     mixed_precision = MixedPrecision(
         param_dtype=mixed_precision_dtype,

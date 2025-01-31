@@ -165,6 +165,15 @@ class Block(nn.Module):
         return x
 
 
+class Head(nn.Module):
+    def __init__(self, dmodel, vocab_size):
+        super().__init__()
+        self.head = nn.Linear(dmodel, vocab_size, bias=False)
+
+    def forward(self, x):
+        return self.head(x)
+
+
 class Transformer(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -176,7 +185,7 @@ class Transformer(nn.Module):
             [Block(config.dmodel, config.n_heads) for _ in range(config.n_layers)]
         )
 
-        self.head = nn.Linear(config.dmodel, config.vocab_size, bias=False)
+        self.head = Head(config.dmodel, config.vocab_size)
 
     def forward(self, input_ids, attention_mask=None):
         output = self.embedding_layer(input_ids)
@@ -249,19 +258,15 @@ def train_model(config, device, run):  # Added 'run' parameter
     model.to(device)
 
     if config.use_fsdp:
-        classes_to_wrap = [
-            Transformer,
-            Block,
-            FeedForward,
-            AttentionLayer,
-            EmbeddingLayer,
-        ]
-
         model = wrap_in_fsdp(
             module=model,
             local_rank=config.local_rank,
             mixed_precision_dtype=config.mixed_precision_dtype,
-            min_num_params=300,
+            modules_to_wrap=[
+                EmbeddingLayer,
+                Block,
+                Head,
+            ],
             mixed_precision_ignored_classes=config.high_precision_modules,
         )
 
@@ -462,7 +467,6 @@ if __name__ == "__main__":
 
     parser.add_argument("--log_train_loss_freq", type=int, default=100)
     parser.add_argument("--log_valid_loss_freq", type=int, default=200)
-
 
     args = parser.parse_args()
 
