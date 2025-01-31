@@ -1,0 +1,62 @@
+#!/bin/bash
+#
+#SBATCH --job-name=bml_adambiel
+#SBATCH --partition=plgrid-gpu-a100
+#SBATCH --account=plgllmparamgr-gpu-a100
+#SBATCH --cpus-per-gpu=8
+#SBATCH --mem=125G
+#SBATCH --nodes=2
+#SBATCH --ntasks=2
+#SBATCH --gpus-per-task=1
+#SBATCH --array=0-2
+#SBATCH --time=0-05:00:00
+#SBATCH --output=logs/output_grid_search_%A_%a.txt
+
+# Number of parameters: 28952064
+# Number of training tokens: 20 * 28877312 = 579041280
+# Number of training steps =  579041280 / seq_length / batch_size / world_size ~= 4417
+
+learning_rate=1e-2
+
+if [ "$SLURM_ARRAY_TASK_ID" -eq 0 ]; then
+  learning_rate=1e-2
+elif [ "$SLURM_ARRAY_TASK_ID" -eq 1 ]; then
+  learning_rate=1e-3
+elif [ "$SLURM_ARRAY_TASK_ID" -eq 2 ]; then
+  learning_rate=1e-4
+fi
+
+echo SLURM_ARRAY_TASK_ID=$SLURM_ARRAY_TASK_ID
+echo learning_rate=$learning_rate
+
+echo SLURM_NNODES=$SLURM_NNODES
+echo RANDOM=$RANDOM
+echo head_node_ip=$head_node_ip
+echo SLURM_JOB_NODELIST=$SLURM_JOB_NODELIST
+
+nodes=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
+echo nodes=$nodes
+nodes_array=($nodes)
+head_node=${nodes_array[0]}
+echo $head_node
+head_node_ip=$(srun --nodes=1 --ntasks=1 -w "$head_node" hostname --ip-address)
+echo $head_node_ip
+
+source venv/bin/activate
+srun torchrun \
+  --nproc_per_node=1 \
+  --nnodes=$SLURM_NNODES \
+  --rdzv_id $RANDOM --rdzv_backend c10d  --rdzv_endpoint $head_node_ip:29500 \
+  main.py \
+    --train_steps=4417 \
+    --vocab_size=50257 \
+    --max_len=256 \
+    --d_model=256 \
+    --num_heads=4 \
+    --num_layers=4 \
+    --learning_rate=$learning_rate \
+    --dropout=0.0 \
+    --seq_length=256 \
+    --batch_size=256 \
+    --log_train_loss_freq=100 \
+    --log_valid_loss_freq=100
