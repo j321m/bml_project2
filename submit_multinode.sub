@@ -1,11 +1,14 @@
 #!/bin/bash
 #
 #SBATCH --job-name=bml_torchrun
-#SBATCH --partition=common
+#SBATCH --partition=plgrid-gpu-a100
+#SBATCH --account=plgllmparamgr-gpu-a100  # Account name
 #SBATCH --qos=8gpu3d
 #SBATCH --nodes=2
 #SBATCH --ntasks=2
 #SBATCH --gpus-per-task=1
+#SBATCH --cpus-per-gpu=8            # Number of CPUs per GPU
+#SBATCH --mem=60G                  # Memory requested
 #SBATCH --time=0:20:00
 #SBATCH --output=logs/output_multinode_test_%j.txt
 
