@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=bml_proj2      # Job name
+#SBATCH --job-name=schmidth_j      # Job name
 #SBATCH --output=logs/%x_%j.out          # Standard output and error log
 #SBATCH --error=logs/%x_%j.err           # Error log
 #SBATCH --gres=gpu:2                     # Request one GPU
-#SBATCH --partition=plgrid-gpu-a100       # Specify GPU partition
+#SBATCH --partition=a100                  # Specify GPU partition
 #SBATCH --cpus-per-gpu=8                  # Number of CPUs per GPU
 #SBATCH --mem=100G                        # Memory requested
-#SBATCH --account=plgllmparamgr-gpu-a100  # Account name
+#SBATCH --account=mim                     # Account name
 #SBATCH --time=0-00:15:00                 # Time limit (D-HH:MM:SS)
 
 # Set up the environment
