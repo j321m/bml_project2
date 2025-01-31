@@ -455,7 +455,7 @@ if __name__ == "__main__":
     parser.add_argument("--mixed_precision_dtype", type=str, default="bfloat16")
     parser.add_argument("--use_high_precision_modules", type=str, default="true")
 
-    parser.add_argument("--n_training_steps", type=int, default=1000)
+    parser.add_argument("--n_training_steps", type=int, default=1001)
     parser.add_argument("--learning_rate", type=int, default=1e-4)
     parser.add_argument("--lr_warmup_fraction", type=int, default=0.01)
     parser.add_argument("--final_lr_fraction", type=int, default=0.1)
