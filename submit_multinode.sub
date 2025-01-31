@@ -3,7 +3,6 @@
 #SBATCH --job-name=bml_torchrun
 #SBATCH --partition=plgrid-gpu-a100
 #SBATCH --account=plgllmparamgr-gpu-a100  # Account name
-#SBATCH --qos=8gpu3d
 #SBATCH --nodes=2
 #SBATCH --ntasks=2
 #SBATCH --gpus-per-task=1
