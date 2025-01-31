@@ -12,6 +12,10 @@
 #SBATCH --time=0:20:00
 #SBATCH --output=logs/output_multinode_test_%j.txt
 
+source bml/bin/activate
+source .env
+echo $NEPTUNE_PROJECT
+
 echo SLURM_NNODES=$SLURM_NNODES
 echo RANDOM=$RANDOM
 echo head_node_ip=$head_node_ip
