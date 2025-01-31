@@ -3,10 +3,9 @@
 #SBATCH --output=logs/%x_%j.out          # Standard output and error log
 #SBATCH --error=logs/%x_%j.err           # Error log
 #SBATCH --gres=gpu:1                # Request one GPU
-#SBATCH --partition=a100            # Specify GPU partition
+#SBATCH --partition=debug            # Specify GPU partition
 #SBATCH --cpus-per-gpu=8            # Number of CPUs per GPU
 #SBATCH --mem=100G                  # Memory requested
-#SBATCH --account=mim               # Account name
 #SBATCH --time=0-00:05:00           # Time limit (D-HH:MM:SS)
 
 # Set up the environment
